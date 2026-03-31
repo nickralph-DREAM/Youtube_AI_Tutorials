@@ -1,0 +1,1616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Navigator — YouTube Curation Agent</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Spartan:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --dark:        #111111;
+    --dark-hover:  #2a2a2a;
+    --orange:      #FF7632;
+    --orange-dark: #E05E1A;
+    --orange-50:   #FFF4EE;
+    --orange-100:  #FFE4D4;
+    --white:       #FFFFFF;
+    --grey-50:     #F7F7F7;
+    --grey-100:    #EFEFEF;
+    --grey-200:    #E0E0E0;
+    --grey-300:    #C8C8C8;
+    --grey-400:    #A0A0A0;
+    --grey-500:    #808080;
+    --grey-600:    #6B6B6B;
+    --grey-700:    #4A4A4A;
+    --green-100:   #D1FAE5;
+    --green-700:   #065F46;
+    --green-400:   #34D399;
+    --amber-100:   #FEF3C7;
+    --amber-400:   #FBBF24;
+    --red-100:     #FEE2E2;
+    --red-700:     #991B1B;
+    --purple-100:  #F5F3FF;
+    --radius:      10px;
+    --shadow:      0 1px 3px rgba(0,0,0,.07), 0 4px 16px rgba(0,0,0,.05);
+  }
+
+  html { font-size: 15px; }
+  body {
+    font-family: 'Spartan', sans-serif;
+    background: var(--grey-50);
+    color: var(--grey-700);
+    min-height: 100vh;
+    line-height: 1.5;
+  }
+
+  /* ── LAYOUT ── */
+  .app-wrap { max-width: 1400px; margin: 0 auto; padding: 20px 24px 48px; }
+
+  /* ── HERO ── */
+  .hero {
+    background: var(--dark);
+    border-left: 6px solid var(--orange);
+    border-radius: var(--radius);
+    padding: 28px 32px 24px;
+    margin-bottom: 24px;
+    display: flex; align-items: center; gap: 20px;
+  }
+  .hero-icon { font-size: 2.4rem; line-height: 1; }
+  .hero h1 {
+    font-size: 1.55rem; font-weight: 800; color: #fff;
+    text-transform: uppercase; letter-spacing: .04em;
+    margin-bottom: 4px;
+  }
+  .hero p  { font-size: 0.82rem; color: var(--grey-400); }
+
+  /* ── COLUMNS ── */
+  .columns { display: grid; grid-template-columns: 320px 1fr; gap: 20px; align-items: start; }
+  @media(max-width:900px) { .columns { grid-template-columns: 1fr; } }
+
+  /* ── CARDS ── */
+  .card {
+    background: var(--white);
+    border: 1.5px solid var(--grey-200);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 14px;
+    box-shadow: var(--shadow);
+  }
+  .card-title {
+    font-size: 0.65rem; font-weight: 800;
+    text-transform: uppercase; letter-spacing: .1em;
+    color: var(--orange); margin-bottom: 12px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .card-title::after {
+    content: ''; flex: 1; height: 2px;
+    background: linear-gradient(90deg, var(--orange), transparent);
+  }
+
+  /* ── API KEY INPUTS ── */
+  .key-field { position: relative; margin-bottom: 6px; }
+  .key-field input {
+    width: 100%;
+    padding: 10px 42px 10px 12px;
+    border: 1.5px solid var(--grey-200);
+    border-radius: 7px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+    color: var(--grey-700);
+    background: var(--grey-50);
+    transition: border-color .2s, box-shadow .2s;
+    outline: none;
+  }
+  .key-field input:focus { border-color: var(--orange); box-shadow: 0 0 0 3px rgba(255,118,50,.12); }
+  .key-field input.filled { border-color: #10B981; background: #F0FDF4; }
+  .toggle-vis {
+    position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+    background: none; border: none; cursor: pointer;
+    color: var(--grey-400); font-size: 1rem; padding: 2px;
+  }
+  .toggle-vis:hover { color: var(--orange); }
+  .key-status {
+    font-size: 0.72rem; margin-top: 4px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .badge {
+    display: inline-block; padding: 1px 8px; border-radius: 999px;
+    font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+  }
+  .badge-ok  { background: var(--green-100); color: var(--green-700); }
+  .badge-req { background: var(--red-100);   color: var(--red-700); }
+  .key-link { color: var(--orange); text-decoration: none; font-size: 0.72rem; }
+  .key-link:hover { text-decoration: underline; }
+
+  /* ── SLIDERS ── */
+  .slider-row { margin-bottom: 14px; }
+  .slider-label {
+    display: flex; justify-content: space-between;
+    font-size: 0.75rem; font-weight: 700;
+    color: var(--grey-600); margin-bottom: 6px;
+    text-transform: uppercase; letter-spacing: .04em;
+  }
+  .slider-val {
+    background: var(--dark); color: #fff;
+    padding: 1px 8px; border-radius: 999px; font-size: 0.7rem;
+    text-transform: none; letter-spacing: 0;
+  }
+  input[type=range] {
+    width: 100%; accent-color: var(--orange);
+    height: 4px; cursor: pointer;
+  }
+  .slider-hint { font-size: 0.67rem; color: var(--grey-400); margin-top: 3px; }
+
+  /* ── VERTICAL CHECKBOXES ── */
+  .v-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 4px;
+    max-height: 280px; overflow-y: auto;
+    padding-right: 4px; margin-top: 6px;
+  }
+  .v-grid::-webkit-scrollbar { width: 4px; }
+  .v-grid::-webkit-scrollbar-track { background: var(--grey-100); border-radius: 2px; }
+  .v-grid::-webkit-scrollbar-thumb { background: var(--grey-300); border-radius: 2px; }
+  .v-item {
+    display: flex; align-items: center; gap: 7px;
+    padding: 6px 8px; border-radius: 6px;
+    cursor: pointer; font-size: 0.73rem; font-weight: 500;
+    transition: background .15s;
+  }
+  .v-item:hover { background: var(--orange-50); }
+  .v-item input[type=checkbox] { accent-color: var(--orange); width: 14px; height: 14px; cursor: pointer; }
+  .v-item.checked { background: var(--orange-50); color: var(--dark); }
+  .v-count { font-size: 0.68rem; color: var(--grey-400); margin-top: 8px; }
+  .select-all-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .select-all-row label { font-size: 0.75rem; font-weight: 700; cursor: pointer; color: var(--dark); text-transform: uppercase; letter-spacing: .04em; }
+  .select-all-row input { accent-color: var(--orange); width: 15px; height: 15px; cursor: pointer; }
+
+  /* ── RUN BUTTON ── */
+  .run-btn {
+    width: 100%; padding: 13px;
+    background: var(--orange);
+    color: white; border: none; border-radius: 8px;
+    font-family: 'Spartan', sans-serif;
+    font-size: 0.88rem; font-weight: 800;
+    text-transform: uppercase; letter-spacing: .06em;
+    cursor: pointer; transition: background .2s, transform .1s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    margin-top: 6px;
+  }
+  .run-btn:hover:not(:disabled) { background: var(--orange-dark); transform: translateY(-1px); }
+  .run-btn:active:not(:disabled) { transform: translateY(0); }
+  .run-btn:disabled {
+    background: var(--grey-300); cursor: not-allowed;
+    transform: none;
+  }
+  .stop-btn {
+    width: 100%; padding: 10px;
+    background: var(--white); color: #DC2626;
+    border: 1.5px solid #DC2626; border-radius: 8px;
+    font-family: 'Spartan', sans-serif;
+    font-size: 0.8rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .04em;
+    cursor: pointer; margin-top: 8px;
+    display: none;
+  }
+  .stop-btn:hover { background: #FEF2F2; }
+  .stop-btn.visible { display: block; }
+
+  /* ── QUOTA NOTE ── */
+  .quota-note {
+    background: var(--orange-50); border: 1px solid var(--orange-100);
+    border-radius: 7px; padding: 10px 12px;
+    font-size: 0.7rem; color: var(--grey-600); line-height: 1.6;
+    margin-top: 10px;
+  }
+  .quota-note strong { color: var(--dark); }
+
+  /* ── STATS ── */
+  .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 14px; }
+  .stat-card {
+    background: var(--white); border: 1.5px solid var(--grey-200);
+    border-radius: var(--radius); padding: 14px 16px; text-align: center;
+    box-shadow: var(--shadow);
+  }
+  .stat-card-btn {
+    background: var(--white); border: 1.5px solid var(--orange);
+    border-radius: var(--radius); padding: 14px 16px; text-align: center;
+    box-shadow: var(--shadow); cursor: pointer;
+    transition: background .15s, transform .1s;
+    width: 100%; font-family: 'Spartan', sans-serif;
+    position: relative;
+  }
+  .stat-card-btn:hover { background: var(--orange-50); transform: translateY(-1px); }
+  .stat-card-btn:hover .stat-lbl { color: var(--orange); }
+  .stat-card-btn .stat-hint {
+    font-size: 0.58rem; color: var(--orange); font-weight: 700;
+    text-transform: uppercase; letter-spacing: .06em; margin-top: 3px;
+  }
+  .stat-num { font-size: 1.9rem; font-weight: 900; color: var(--dark); line-height: 1; }
+  .stat-lbl { font-size: 0.6rem; text-transform: uppercase; letter-spacing: .1em; color: var(--grey-400); margin-top: 4px; font-weight: 700; }
+
+  /* ── VERTICAL BREAKDOWN PANEL ── */
+  .breakdown-panel {
+    display: none; background: var(--white);
+    border: 1.5px solid var(--orange); border-radius: var(--radius);
+    margin-bottom: 14px; overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+  .breakdown-panel.open { display: block; }
+  .breakdown-header {
+    background: var(--dark); padding: 10px 16px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .breakdown-header span {
+    font-size: 0.65rem; font-weight: 800; text-transform: uppercase;
+    letter-spacing: .1em; color: var(--grey-300);
+  }
+  .breakdown-close {
+    background: none; border: none; color: var(--grey-400);
+    font-size: 1rem; cursor: pointer; padding: 0 2px; line-height: 1;
+  }
+  .breakdown-close:hover { color: #fff; }
+  .breakdown-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1px; background: var(--grey-100);
+  }
+  .breakdown-item {
+    background: var(--white); padding: 12px 14px;
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    cursor: pointer; transition: background .12s;
+  }
+  .breakdown-item:hover { background: var(--orange-50); }
+  .breakdown-item-left { display: flex; align-items: center; gap: 7px; min-width: 0; }
+  .breakdown-item-name {
+    font-size: 0.72rem; font-weight: 700; color: var(--dark);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .breakdown-item-count {
+    font-size: 0.82rem; font-weight: 900; color: var(--orange);
+    white-space: nowrap; flex-shrink: 0;
+  }
+  .breakdown-item-sub {
+    font-size: 0.6rem; color: var(--grey-400); font-weight: 600;
+    text-transform: uppercase; letter-spacing: .04em;
+  }
+
+  /* ── PROGRESS BAR ── */
+  .progress-wrap { margin-bottom: 14px; display: none; }
+  .progress-wrap.visible { display: block; }
+  .progress-track {
+    background: var(--grey-200); border-radius: 999px; height: 8px; overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%; background: linear-gradient(90deg, var(--orange), var(--orange-dark));
+    border-radius: 999px; transition: width .4s ease;
+    width: 0%;
+  }
+  .progress-text { font-size: 0.7rem; color: var(--grey-500); margin-top: 5px; }
+
+  /* ── LOG ── */
+  .log-box {
+    background: #111111;
+    border-radius: var(--radius);
+    border: 1.5px solid #2a2a2a;
+    padding: 14px 16px;
+    height: 220px; overflow-y: auto;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem; line-height: 1.7;
+    margin-bottom: 14px;
+  }
+  .log-box::-webkit-scrollbar { width: 4px; }
+  .log-box::-webkit-scrollbar-thumb { background: #444; border-radius: 2px; }
+  .log-entry { display: flex; gap: 10px; }
+  .log-ts { color: #555; min-width: 56px; }
+  .log-msg.info    { color: #FF9158; }
+  .log-msg.success { color: var(--green-400); }
+  .log-msg.warn    { color: var(--amber-400); }
+  .log-msg.error   { color: #FF6B6B; }
+  .log-msg.dim     { color: #555; }
+  .log-empty { color: #555; font-style: italic; }
+
+  /* ── FILTERS ── */
+  .filter-row { display: flex; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+  .filter-select {
+    padding: 7px 10px; border: 1.5px solid var(--grey-200);
+    border-radius: 7px; font-size: 0.73rem;
+    font-family: 'Spartan', sans-serif;
+    background: var(--white); color: var(--grey-700);
+    cursor: pointer; outline: none;
+    transition: border-color .2s;
+  }
+  .filter-select:focus { border-color: var(--orange); }
+  .result-count { font-size: 0.72rem; color: var(--grey-400); align-self: center; margin-left: auto; font-weight: 600; }
+
+  /* ── RESULTS TABLE ── */
+  .table-wrap { overflow-x: auto; border-radius: var(--radius); border: 1.5px solid var(--grey-200); }
+  table { width: 100%; border-collapse: collapse; font-size: 0.76rem; }
+  thead tr { background: var(--dark); }
+  thead th {
+    padding: 10px 12px; text-align: left;
+    font-size: 0.6rem; font-weight: 800;
+    text-transform: uppercase; letter-spacing: .1em;
+    color: var(--grey-300); white-space: nowrap;
+  }
+  tbody tr { border-bottom: 1px solid var(--grey-100); transition: background .1s; }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: var(--orange-50); }
+  tbody tr:nth-child(even) { background: var(--grey-50); }
+  tbody tr:nth-child(even):hover { background: var(--orange-50); }
+  td { padding: 9px 12px; vertical-align: top; }
+  td.title-cell { max-width: 260px; }
+  td.title-cell a { color: var(--dark); font-weight: 700; text-decoration: none; font-size: 0.76rem; }
+  td.title-cell a:hover { color: var(--orange); text-decoration: underline; }
+  td.summary-cell { max-width: 300px; color: var(--grey-500); font-size: 0.71rem; }
+  .score-bar-wrap { display: flex; align-items: center; gap: 6px; }
+  .score-bar-track { flex: 1; height: 5px; background: var(--grey-200); border-radius: 999px; overflow: hidden; }
+  .score-bar-fill { height: 100%; border-radius: 999px; }
+  .score-num { font-size: 0.72rem; font-weight: 800; color: var(--grey-600); min-width: 18px; }
+  .pill {
+    display: inline-block; padding: 2px 8px; border-radius: 999px;
+    font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+  }
+  .pill-beginner  { background: var(--green-100); color: var(--green-700); }
+  .pill-inter     { background: var(--amber-100); color: #92400E; }
+  .pill-advanced  { background: var(--purple-100); color: #5B21B6; }
+  .pill-day1  { background: var(--orange-50);  color: var(--orange-dark); }
+  .pill-week1 { background: #FEF9C3; color: #713F12; }
+  .pill-month1{ background: #F3E8FF; color: #6B21A8; }
+  .watch-btn {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 4px 10px; border-radius: 6px;
+    background: var(--orange); color: white;
+    font-family: 'Spartan', sans-serif;
+    font-size: 0.65rem; font-weight: 800;
+    text-decoration: none; white-space: nowrap;
+    text-transform: uppercase; letter-spacing: .04em;
+    transition: background .15s;
+  }
+  .watch-btn:hover { background: var(--orange-dark); }
+
+  /* ── EMPTY STATES ── */
+  .results-empty {
+    text-align: center; padding: 48px 20px;
+    color: var(--grey-400);
+  }
+  .results-empty .empty-icon { font-size: 2.5rem; margin-bottom: 10px; }
+  .results-empty p { font-size: 0.82rem; }
+
+  /* ── DOWNLOAD ── */
+  .download-row { display: flex; justify-content: flex-end; margin-top: 12px; }
+  .dl-btn {
+    padding: 9px 22px;
+    background: var(--dark); color: var(--white);
+    border: none; border-radius: 7px;
+    font-family: 'Spartan', sans-serif;
+    font-size: 0.78rem; font-weight: 800;
+    text-transform: uppercase; letter-spacing: .06em;
+    cursor: pointer; display: flex; align-items: center; gap: 6px;
+    transition: background .15s;
+  }
+  .dl-btn:hover { background: var(--orange); }
+  .dl-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--grey-100); }
+  ::-webkit-scrollbar-thumb { background: var(--grey-300); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- FILE:// WARNING BANNER -->
+<div id="file-warning" style="display:none;background:#FEF3C7;border-bottom:2px solid #F59E0B;padding:14px 24px;font-family:'Spartan',sans-serif;font-size:.82rem;color:#78350F;line-height:1.7">
+  <strong>⚠️ Action needed — open via local server, not as a file.</strong>
+  Your browser is blocking YouTube API calls because this page was opened directly from your filesystem (<code>file://</code>).
+  This is a one-time fix:<br>
+  <strong>Option A (easiest):</strong> Double-click <code>serve.py</code> in the same folder — it opens the app automatically.<br>
+  <strong>Option B (Terminal):</strong> <code style="background:#FDE68A;padding:1px 6px;border-radius:3px">python -m http.server 8888</code> in this folder, then visit
+  <a href="http://localhost:8888/ai_navigator_agent.html" style="color:#92400E;font-weight:700">http://localhost:8888/ai_navigator_agent.html</a>
+</div>
+<script>if (location.protocol === 'file:') document.getElementById('file-warning').style.display = 'block';</script>
+
+<div class="app-wrap">
+
+  <!-- HERO -->
+  <div class="hero">
+    <div style="display:flex;align-items:center;padding-right:28px;border-right:1.5px solid #2a2a2a;margin-right:4px;flex-shrink:0">
+      <div style="background:#fff;border-radius:8px;padding:10px 14px;display:inline-block">
+        <img src="https://www.teampeople.tv/hubfs/2021%20Website/Compress/TeamPeople%20Logo.svg"
+             alt="TeamPeople" style="width:140px;height:auto;display:block;">
+      </div>
+    </div>
+    <div>
+      <h1>AI Navigator — YouTube Curation Agent</h1>
+      <p>Finds and scores AI training videos mapped to every TeamPeople role vertical using Claude</p>
+    </div>
+  </div>
+
+  <div class="columns">
+
+    <!-- ────────── LEFT SIDEBAR ────────── -->
+    <div>
+
+      <!-- API KEYS -->
+      <div class="card">
+        <div class="card-title">🔑 API Keys</div>
+
+        <div style="margin-bottom:16px">
+          <div style="font-size:.78rem;font-weight:600;color:var(--slate-600);margin-bottom:6px">
+            YouTube Data API v3
+          </div>
+          <div class="key-field">
+            <input type="password" id="yt-key" placeholder="Paste your YouTube API key…" oninput="onKeyInput('yt')">
+            <button class="toggle-vis" onclick="toggleVis('yt-key', this)" title="Show / hide">👁</button>
+          </div>
+          <div class="key-status" id="yt-status">
+            <span class="badge badge-req">Required</span>
+            <a class="key-link" href="https://console.cloud.google.com/apis/library/youtube.googleapis.com" target="_blank">
+              Get a free key at Google Cloud Console →
+            </a>
+          </div>
+          <button id="test-yt-btn" onclick="testYouTubeKey()"
+            style="display:none;margin-top:8px;width:100%;padding:7px;background:#FFF4EE;
+                   border:1.5px solid #FF7632;border-radius:6px;color:#FF7632;font-family:Spartan,sans-serif;
+                   font-size:.72rem;font-weight:800;cursor:pointer;text-transform:uppercase;letter-spacing:.04em;">
+            🔍 Test YouTube Key
+          </button>
+          <div id="test-yt-result" style="display:none;margin-top:6px;padding:8px 10px;border-radius:6px;
+               font-size:.73rem;font-weight:500;line-height:1.5"></div>
+        </div>
+
+        <div>
+          <div style="font-size:.78rem;font-weight:600;color:var(--slate-600);margin-bottom:6px">
+            Anthropic API Key (Claude)
+          </div>
+          <div class="key-field">
+            <input type="password" id="ant-key" placeholder="Paste your Anthropic API key…" oninput="onKeyInput('ant')">
+            <button class="toggle-vis" onclick="toggleVis('ant-key', this)" title="Show / hide">👁</button>
+          </div>
+          <div class="key-status" id="ant-status">
+            <span class="badge badge-req">Required</span>
+            <a class="key-link" href="https://console.anthropic.com" target="_blank">
+              Get a key at console.anthropic.com →
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- SETTINGS -->
+      <div class="card">
+        <div class="card-title">⚙️ Settings</div>
+
+        <div class="slider-row">
+          <div class="slider-label">
+            Results per query
+            <span class="slider-val" id="rq-val">10</span>
+          </div>
+          <input type="range" id="rq-slider" min="5" max="25" step="5" value="10"
+            oninput="document.getElementById('rq-val').textContent=this.value">
+          <div class="slider-hint">More = better coverage, uses more API quota</div>
+        </div>
+
+        <div class="slider-row">
+          <div class="slider-label">
+            Min Claude relevance score
+            <span class="slider-val" id="sc-val">6</span>
+          </div>
+          <input type="range" id="sc-slider" min="4" max="9" step="1" value="6"
+            oninput="document.getElementById('sc-val').textContent=this.value">
+          <div class="slider-hint">Videos scoring below this are filtered out</div>
+        </div>
+
+        <div class="quota-note" id="quota-note">
+          <strong>Quota estimate:</strong> loading…
+        </div>
+      </div>
+
+      <!-- VERTICALS -->
+      <div class="card">
+        <div class="card-title">🗂 Verticals to Search</div>
+        <div class="select-all-row">
+          <input type="checkbox" id="select-all" checked onchange="toggleAllVerticals(this.checked)">
+          <label for="select-all">Select all 13 verticals</label>
+        </div>
+        <div class="v-grid" id="vertical-grid"></div>
+        <div class="v-count" id="v-count"></div>
+      </div>
+
+      <!-- RUN -->
+      <button class="run-btn" id="run-btn" onclick="startAgent()" disabled>
+        ▶&nbsp; Start Curation Agent
+      </button>
+      <button class="stop-btn" id="stop-btn" onclick="stopAgent()">
+        ⏹&nbsp; Stop Agent
+      </button>
+
+    </div><!-- /sidebar -->
+
+    <!-- ────────── MAIN PANEL ────────── -->
+    <div>
+
+      <!-- STATS -->
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-num" id="stat-searched">0</div>
+          <div class="stat-lbl">Queries Run</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num" id="stat-candidates">0</div>
+          <div class="stat-lbl">Videos Found</div>
+        </div>
+        <button class="stat-card-btn" onclick="toggleBreakdown()">
+          <div class="stat-num" id="stat-kept">0</div>
+          <div class="stat-lbl">Videos Kept</div>
+          <div class="stat-hint">▼ By Vertical</div>
+        </button>
+        <div class="stat-card">
+          <div class="stat-num" id="stat-quota">0</div>
+          <div class="stat-lbl">Quota Used</div>
+        </div>
+      </div>
+
+      <!-- VERTICAL BREAKDOWN PANEL -->
+      <div class="breakdown-panel" id="breakdown-panel">
+        <div class="breakdown-header">
+          <span>📊 Videos kept by vertical</span>
+          <button class="breakdown-close" onclick="toggleBreakdown()">✕</button>
+        </div>
+        <div class="breakdown-grid" id="breakdown-grid"></div>
+      </div>
+
+      <!-- PROGRESS -->
+      <div class="progress-wrap" id="progress-wrap">
+        <div class="progress-track">
+          <div class="progress-fill" id="progress-fill"></div>
+        </div>
+        <div class="progress-text" id="progress-text">Starting…</div>
+      </div>
+
+      <!-- LOG -->
+      <div class="card" style="padding:14px">
+        <div class="card-title">📟 Agent Log</div>
+        <div class="log-box" id="log-box">
+          <div class="log-empty">Agent log will appear here once you start…</div>
+        </div>
+      </div>
+
+      <!-- RESULTS -->
+      <div class="card">
+        <div class="card-title">📋 Results</div>
+
+        <div class="filter-row" id="filter-row" style="display:none">
+          <select class="filter-select" id="f-vertical" onchange="renderTable()">
+            <option value="">All Verticals</option>
+          </select>
+          <select class="filter-select" id="f-skill" onchange="renderTable()">
+            <option value="">All Skill Levels</option>
+            <option>Beginner</option>
+            <option>Intermediate</option>
+            <option>Advanced</option>
+          </select>
+          <select class="filter-select" id="f-tier" onchange="renderTable()">
+            <option value="">All Curriculum Tiers</option>
+            <option>Day 1</option>
+            <option>Week 1</option>
+            <option>Month 1</option>
+          </select>
+          <span class="result-count" id="result-count"></span>
+        </div>
+
+        <div id="results-area">
+          <div class="results-empty">
+            <div class="empty-icon">🎯</div>
+            <p>Results will appear here as videos are curated.</p>
+          </div>
+        </div>
+
+        <div id="restore-banner" style="display:none;margin-bottom:12px;padding:10px 14px;
+             background:#FFF4EE;border:1.5px solid #FFB899;border-radius:8px;
+             font-size:.75rem;color:#7A3010;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <span id="restore-msg" style="flex:1"></span>
+          <button onclick="clearSavedResults()"
+            style="padding:4px 10px;background:#FEE2E2;border:1.5px solid #FCA5A5;border-radius:5px;
+                   color:#B91C1C;font-size:.73rem;font-weight:600;cursor:pointer;white-space:nowrap">
+            🗑 Clear saved
+          </button>
+        </div>
+
+        <div class="download-row">
+          <button class="dl-btn" id="dl-btn" onclick="downloadCSV()" disabled>
+            ⬇&nbsp; Download CSV
+          </button>
+        </div>
+      </div>
+
+    </div><!-- /main -->
+  </div><!-- /columns -->
+</div><!-- /app-wrap -->
+
+<script>
+// ─────────────────────────────────────────────────────────────────────────────
+// DATA
+// ─────────────────────────────────────────────────────────────────────────────
+
+const VERTICALS = {
+  "Broadcast & News Operations": {
+    icon: "📡",
+    roles: ["Technical Director","Broadcast Engineer","News Producer","Master Control Operator"],
+    queries: [
+      "AI transcription broadcast news tutorial",
+      "automated captions live broadcast AI",
+      "ENPS iNEWS AI workflow tutorial",
+      "EVS replay AI search tutorial",
+      "rundown automation AI news production",
+      "AI news research summarization journalist",
+      "real time captioning AI broadcast tutorial",
+      "post show report generation AI tutorial",
+      "AI tools broadcast production workflow 2024",
+      "news production AI tools tutorial",
+    ]
+  },
+  "Camera Operations & Field Production": {
+    icon: "🎥",
+    roles: ["Camera Operator","ENG Shooter","Cinematographer","DIT"],
+    queries: [
+      "AI metadata tagging video footage tutorial",
+      "DaVinci Resolve AI color science tutorial",
+      "Adobe Premiere AI auto reframe tutorial",
+      "AI shot logging camera operator workflow",
+      "AI field production workflow tutorial",
+      "automated shot description AI video tutorial",
+      "AI pre production location research tutorial",
+      "video file organisation AI workflow tutorial",
+      "AI tools for videographers beginners 2024",
+      "camera operator AI productivity tutorial",
+    ]
+  },
+  "Audio Engineering & Sound": {
+    icon: "🎙️",
+    roles: ["Audio Engineer","Sound Designer","Podcast Producer","Mix Engineer"],
+    queries: [
+      "Adobe Audition AI noise reduction tutorial",
+      "iZotope RX AI audio restoration tutorial",
+      "Descript AI podcast editing tutorial",
+      "AI stem separation tutorial music production",
+      "AI dialogue enhancement broadcast tutorial",
+      "automated audio leveling AI tutorial",
+      "podcast transcription AI workflow tutorial",
+      "AI sound design tools tutorial 2024",
+      "AI for audio engineers beginners",
+      "sound design AI tools workflow tutorial",
+    ]
+  },
+  "Post-Production & VFX": {
+    icon: "✨",
+    roles: ["Video Editor","VFX Artist","Compositor","Colorist","Motion Graphics Designer"],
+    queries: [
+      "Nuke AI rotoscoping tutorial",
+      "Houdini AI procedural generation tutorial",
+      "DaVinci Resolve AI color grading tutorial",
+      "Adobe After Effects AI tools tutorial",
+      "Python pipeline automation VFX tutorial",
+      "AI VFX pipeline automation tutorial",
+      "generative AI asset creation post production",
+      "AI motion graphics workflow tutorial 2024",
+      "AI tools post production editors 2024",
+      "VFX pipeline AI integration tutorial",
+    ]
+  },
+  "Live Events, AV & Virtual Production": {
+    icon: "🎪",
+    roles: ["AV Technician","Live Event Producer","Streaming Engineer","Virtual Event Technician"],
+    queries: [
+      "OBS AI streaming tools tutorial",
+      "Zoom Webex AI virtual event tutorial",
+      "vMix AI live production tutorial",
+      "AI live event production automation tutorial",
+      "real time captioning live events AI tutorial",
+      "virtual event analytics AI tutorial",
+      "AI run of show assistant live event",
+      "hybrid event AI tools tutorial 2024",
+      "AI tools live events AV technician tutorial",
+      "live streaming AI automation beginner tutorial",
+    ]
+  },
+  "In-House Creative & Digital/Web": {
+    icon: "🎨",
+    roles: ["Graphic Designer","UX/UI Designer","Copywriter","Web Developer","Brand Strategist"],
+    queries: [
+      "Figma AI design tools tutorial",
+      "Adobe Firefly AI creative tutorial",
+      "Midjourney brand design workflow tutorial",
+      "GitHub Copilot web development tutorial",
+      "Canva AI design generation tutorial",
+      "AI creative concepting workflow tutorial",
+      "AI copywriting brand voice tutorial",
+      "design iteration AI tools tutorial 2024",
+      "AI web component development tutorial",
+      "AI tools graphic designers beginners 2024",
+    ]
+  },
+  "Photography & Visual Content": {
+    icon: "📸",
+    roles: ["Still Photographer","Photo Editor","Retoucher","Visual Content Strategist"],
+    queries: [
+      "Lightroom AI masking selection tutorial",
+      "Capture One AI culling tutorial",
+      "Photoshop AI generative fill tutorial",
+      "AI photo keywording metadata tutorial",
+      "AI background generation photography tutorial",
+      "AI photo culling workflow tutorial",
+      "automated photo editing AI tutorial",
+      "AI retouching workflow tutorial 2024",
+      "AI tools photographers beginners 2024",
+      "photo editing AI automation tutorial",
+    ]
+  },
+  "Production Management": {
+    icon: "📋",
+    roles: ["Production Coordinator","Production Manager","Executive Producer","Line Producer"],
+    queries: [
+      "Notion AI production management tutorial",
+      "Airtable AI workflow automation tutorial",
+      "Monday.com AI project management tutorial",
+      "AI production schedule automation tutorial",
+      "ChatGPT production brief writing tutorial",
+      "AI resource scheduling production tutorial",
+      "budget tracking AI automation tutorial",
+      "AI status reporting production workflow",
+      "AI production management beginners tutorial",
+      "AI coordinator tools workflow tutorial",
+    ]
+  },
+  "eLearning & Education": {
+    icon: "🎓",
+    roles: ["Instructional Designer","eLearning Developer","LMS Administrator","Course Producer"],
+    queries: [
+      "Articulate Storyline AI tools tutorial",
+      "Rise 360 AI content authoring tutorial",
+      "AI voiceover eLearning ElevenLabs tutorial",
+      "ChatGPT quiz question generation tutorial",
+      "SCORM AI course authoring tutorial",
+      "AI instructional design workflow tutorial",
+      "automated eLearning content generation AI",
+      "AI accessibility remediation eLearning tutorial",
+      "LMS AI integration tutorial 2024",
+      "AI tools instructional designers 2024",
+    ]
+  },
+  "Government, IGO & NGO": {
+    icon: "🏛️",
+    roles: ["Cleared Multimedia Specialist","Gov AV Technician","Public Affairs Specialist"],
+    queries: [
+      "FedRAMP AI tools government tutorial",
+      "on premise AI transcription government",
+      "Microsoft Copilot government GCC tutorial",
+      "AI captioning accessibility Section 508 tutorial",
+      "AI policy document summarization tutorial",
+      "secure AI workflow government communications",
+      "multilingual captioning AI government tutorial",
+      "AI accessibility compliance multimedia tutorial",
+      "on premise LLM deployment tutorial",
+      "secure AI workflow public sector tutorial",
+    ]
+  },
+  "Gaming & Game Development": {
+    icon: "🎮",
+    roles: ["Game Developer","QA Engineer","Technical Artist","3D Artist","Narrative Designer"],
+    queries: [
+      "Unity AI tools game development tutorial",
+      "Unreal Engine AI procedural generation tutorial",
+      "AI QA automation game testing tutorial",
+      "GitHub Copilot game development tutorial",
+      "AI NPC behavior scripting tutorial",
+      "procedural content generation AI tutorial",
+      "AI game asset pipeline tutorial",
+      "AI localization automation game tutorial",
+      "AI tools game developers beginners 2024",
+      "game development AI workflow tutorial",
+    ]
+  },
+  "Office Management & Operations": {
+    icon: "🏢",
+    roles: ["Office Manager","Executive Assistant","Operations Coordinator","Administrative Specialist"],
+    queries: [
+      "Microsoft Copilot Outlook tutorial beginners",
+      "ChatGPT email drafting workflow tutorial",
+      "Copilot Word Excel productivity tutorial",
+      "AI meeting scheduling automation tutorial",
+      "AI SOP documentation generation tutorial",
+      "AI inbox triage email management tutorial",
+      "automated scheduling AI assistant tutorial",
+      "Microsoft 365 AI tools beginners tutorial",
+      "AI admin automation office workflow 2024",
+      "executive assistant AI productivity tutorial",
+    ]
+  },
+  "General Corporate (Sales, HR, Finance)": {
+    icon: "💼",
+    roles: ["Sales Development Rep","HR Generalist","Finance Analyst","Talent Acquisition Specialist"],
+    queries: [
+      "Salesforce Einstein AI CRM tutorial",
+      "ChatGPT sales outreach personalization tutorial",
+      "AI candidate screening HR tutorial",
+      "Excel Copilot financial modeling tutorial",
+      "AI job description generation HR tutorial",
+      "AI sales prospecting workflow tutorial",
+      "HR AI recruitment automation tutorial",
+      "AI financial analysis Excel tutorial 2024",
+      "CRM AI integration workflow tutorial",
+      "HR AI tools workflow tutorial",
+    ]
+  },
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────────────────────────────────────
+
+let allResults   = [];
+let seenIds      = new Set();
+let stats        = { searched: 0, candidates: 0, kept: 0, quota: 0 };
+let stopRequested = false;
+let running      = false;
+let totalQueries = 0;
+let doneQueries  = 0;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────────────────────────────────────
+
+(function init() {
+  const grid = document.getElementById('vertical-grid');
+  Object.entries(VERTICALS).forEach(([name, data]) => {
+    const id = 'v_' + name.replace(/\W/g,'_');
+    const div = document.createElement('div');
+    div.className = 'v-item checked';
+    div.innerHTML = `
+      <input type="checkbox" id="${id}" data-vertical="${name}" checked onchange="onVerticalChange()">
+      <label for="${id}" style="cursor:pointer">${data.icon} ${name}</label>`;
+    grid.appendChild(div);
+  });
+  updateVerticalCount();
+  updateQuotaNote();
+
+  // Restore saved API keys
+  try {
+    const savedYt  = localStorage.getItem(STORAGE_YT_KEY);
+    const savedAnt = localStorage.getItem(STORAGE_ANT_KEY);
+    if (savedYt) {
+      const el = document.getElementById('yt-key');
+      el.value = savedYt;
+      onKeyInput('yt');
+    }
+    if (savedAnt) {
+      const el = document.getElementById('ant-key');
+      el.value = savedAnt;
+      onKeyInput('ant');
+    }
+  } catch(e) {}
+
+  restoreFromStorage();
+})();
+
+function onVerticalChange() {
+  const checks = document.querySelectorAll('#vertical-grid input[type=checkbox]');
+  const allChecked = [...checks].every(c => c.checked);
+  document.getElementById('select-all').checked = allChecked;
+  checks.forEach(c => {
+    c.closest('.v-item').classList.toggle('checked', c.checked);
+  });
+  updateVerticalCount();
+  updateQuotaNote();
+}
+
+function toggleAllVerticals(checked) {
+  document.querySelectorAll('#vertical-grid input[type=checkbox]').forEach(c => {
+    c.checked = checked;
+    c.closest('.v-item').classList.toggle('checked', checked);
+  });
+  updateVerticalCount();
+  updateQuotaNote();
+}
+
+function updateVerticalCount() {
+  const sel = getSelectedVerticalNames();
+  const q = sel.reduce((acc, n) => acc + VERTICALS[n].queries.length, 0);
+  document.getElementById('v-count').textContent =
+    `${sel.length} vertical${sel.length!==1?'s':''} · ${q} search queries selected`;
+  updateRunBtn();
+}
+
+function updateQuotaNote() {
+  const sel = getSelectedVerticalNames();
+  const q = sel.reduce((acc, n) => acc + VERTICALS[n].queries.length, 0);
+  const units = q * 100;
+  const days = Math.max(1, Math.ceil(units / 10000));
+  document.getElementById('quota-note').innerHTML =
+    `<strong>Quota estimate:</strong> ${units.toLocaleString()} units across ${sel.length} verticals<br>
+     Free tier = 10,000/day → ~${days} day${days>1?'s':''} to complete (script saves progress automatically)`;
+}
+
+function getSelectedVerticalNames() {
+  return [...document.querySelectorAll('#vertical-grid input[type=checkbox]')]
+    .filter(c => c.checked)
+    .map(c => c.dataset.vertical);
+}
+
+function onKeyInput(which) {
+  const id = which === 'yt' ? 'yt-key' : 'ant-key';
+  const statusId = which === 'yt' ? 'yt-status' : 'ant-status';
+  const val = document.getElementById(id).value.trim();
+  const input = document.getElementById(id);
+  const status = document.getElementById(statusId);
+
+  if (val) {
+    input.classList.add('filled');
+    const linkHref = which === 'yt'
+      ? 'https://console.cloud.google.com/apis/library/youtube.googleapis.com'
+      : 'https://console.anthropic.com';
+    const linkText = which === 'yt' ? 'Google Cloud Console →' : 'console.anthropic.com →';
+    status.innerHTML = `<span class="badge badge-ok">✓ Key entered</span>`;
+  } else {
+    input.classList.remove('filled');
+    const link = which === 'yt'
+      ? `<a class="key-link" href="https://console.cloud.google.com/apis/library/youtube.googleapis.com" target="_blank">Get a free key at Google Cloud Console →</a>`
+      : `<a class="key-link" href="https://console.anthropic.com" target="_blank">Get a key at console.anthropic.com →</a>`;
+    status.innerHTML = `<span class="badge badge-req">Required</span> ${link}`;
+  }
+
+  // Persist key to localStorage
+  try {
+    const storageKey = which === 'yt' ? STORAGE_YT_KEY : STORAGE_ANT_KEY;
+    if (val) localStorage.setItem(storageKey, val);
+    else localStorage.removeItem(storageKey);
+  } catch(e) {}
+
+  // Show/hide the YouTube test button
+  if (which === 'yt') {
+    const testBtn = document.getElementById('test-yt-btn');
+    const testResult = document.getElementById('test-yt-result');
+    const ytVal = document.getElementById('yt-key').value.trim();
+    if (ytVal) {
+      testBtn.style.display = 'block';
+    } else {
+      testBtn.style.display = 'none';
+      testResult.style.display = 'none';
+      testResult.innerHTML = '';
+    }
+  }
+
+  updateRunBtn();
+}
+
+async function testYouTubeKey() {
+  const key = document.getElementById('yt-key').value.trim();
+  if (!key) return;
+
+  const btn = document.getElementById('test-yt-btn');
+  const resultDiv = document.getElementById('test-yt-result');
+
+  btn.disabled = true;
+  btn.textContent = '⏳ Testing…';
+  resultDiv.style.display = 'block';
+  resultDiv.style.background = '#F8FAFC';
+  resultDiv.style.border = '1.5px solid #CBD5E1';
+  resultDiv.style.color = '#475569';
+  resultDiv.innerHTML = 'Contacting YouTube API…';
+
+  try {
+    const resp = await fetch(`/proxy/test-youtube?key=${encodeURIComponent(key)}`);
+    const data = await resp.json();
+
+    if (data.ok) {
+      resultDiv.style.background = '#F0FDF4';
+      resultDiv.style.border = '1.5px solid #22C55E';
+      resultDiv.style.color = '#15803D';
+      resultDiv.innerHTML = data.message;
+    } else {
+      resultDiv.style.background = '#FEF2F2';
+      resultDiv.style.border = '1.5px solid #EF4444';
+      resultDiv.style.color = '#B91C1C';
+      resultDiv.innerHTML = data.message || '❌ Unknown error — check the server terminal for details.';
+    }
+  } catch (err) {
+    resultDiv.style.background = '#FEF2F2';
+    resultDiv.style.border = '1.5px solid #EF4444';
+    resultDiv.style.color = '#B91C1C';
+    resultDiv.innerHTML = '❌ Could not reach the proxy server. Make sure serve.py is running.';
+  }
+
+  btn.disabled = false;
+  btn.textContent = '🔍 Test YouTube Key';
+}
+
+function toggleVis(inputId, btn) {
+  const inp = document.getElementById(inputId);
+  if (inp.type === 'password') { inp.type = 'text'; btn.textContent = '🙈'; }
+  else { inp.type = 'password'; btn.textContent = '👁'; }
+}
+
+function updateRunBtn() {
+  const ytOk  = document.getElementById('yt-key').value.trim().length > 0;
+  const antOk = document.getElementById('ant-key').value.trim().length > 0;
+  const selOk = getSelectedVerticalNames().length > 0;
+  document.getElementById('run-btn').disabled = !(ytOk && antOk && selOk) || running;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LOGGING
+// ─────────────────────────────────────────────────────────────────────────────
+
+function log(msg, level = 'info') {
+  const box = document.getElementById('log-box');
+  // clear empty state
+  const empty = box.querySelector('.log-empty');
+  if (empty) empty.remove();
+
+  const now = new Date();
+  const ts = now.toTimeString().slice(0,8);
+  const div = document.createElement('div');
+  div.className = 'log-entry';
+  div.innerHTML = `<span class="log-ts">${ts}</span><span class="log-msg ${level}">${msg}</span>`;
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// YOUTUBE API
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function searchYouTube(query, maxResults, apiKey) {
+  const params = new URLSearchParams({
+    q: query, part: 'snippet', type: 'video',
+    maxResults,
+    relevanceLanguage: 'en', safeSearch: 'moderate',
+    order: 'relevance', key: apiKey
+  });
+  // Route through local proxy (serve.py) — avoids all browser CORS / ad-blocker issues
+  const url = `/proxy/youtube/search?${params}`;
+
+  let resp;
+  try {
+    resp = await fetch(url);
+  } catch (networkErr) {
+    if (location.protocol === 'file:') {
+      throw new Error('Open via serve.py — not as a file:// page');
+    }
+    throw new Error(`Could not reach local server — is serve.py running? (${networkErr.message})`);
+  }
+
+  if (resp.status === 400) throw new Error('YouTube API: bad request — check your API key is correct');
+  if (resp.status === 403) {
+    const err = await resp.json().catch(() => ({}));
+    const reason = err?.error?.errors?.[0]?.reason || '';
+    if (reason === 'quotaExceeded') throw new Error('YouTube quota exceeded — free tier limit (10,000 units/day) reached. Try again tomorrow.');
+    if (reason === 'keyInvalid')    throw new Error('YouTube API key is invalid — double-check it in Google Cloud Console');
+    throw new Error(`YouTube API key rejected (403) — make sure the YouTube Data API v3 is enabled at console.cloud.google.com`);
+  }
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({}));
+    throw new Error(err?.error?.message || `YouTube API error ${resp.status}`);
+  }
+
+  const data = await resp.json();
+  return (data.items || []).map(item => ({
+    video_id: item.id.videoId,
+    title:    item.snippet.title,
+    channel:  item.snippet.channelTitle,
+    description: (item.snippet.description || '').slice(0, 300),
+    published_at: item.snippet.publishedAt,
+    url: `https://www.youtube.com/watch?v=${item.id.videoId}`,
+  }));
+}
+
+async function getVideoStats(videoIds, apiKey) {
+  if (!videoIds.length) return {};
+  const params = new URLSearchParams({ part: 'statistics,contentDetails', id: videoIds.join(','), key: apiKey });
+  const resp = await fetch(`/proxy/youtube/videos?${params}`);
+  if (!resp.ok) return {};
+  const data = await resp.json();
+  const out = {};
+  (data.items || []).forEach(item => {
+    out[item.id] = {
+      view_count: item.statistics?.viewCount || '0',
+      duration:   item.contentDetails?.duration || '',
+    };
+  });
+  return out;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CLAUDE SCORING
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function scoreBatch(videos, vertical, roles, apiKey, threshold) {
+  const videosJson = JSON.stringify(videos.map(v => ({
+    video_id: v.video_id, title: v.title,
+    channel: v.channel, description: v.description,
+  })), null, 2);
+
+  const prompt = `You are a curriculum curator for an AI adoption training programme for creative and technical professionals.
+
+Target Vertical: ${vertical}
+Target Roles: ${roles.join(', ')}
+
+Evaluate each video. Return a JSON array (one object per video):
+{
+  "video_id": "...",
+  "relevance_score": 1-10,
+  "skill_level": "Beginner" | "Intermediate" | "Advanced",
+  "curriculum_tier": "Day 1" | "Week 1" | "Month 1",
+  "keep": true | false,
+  "ai_tools": "Comma-separated list of AI tools/products covered (e.g. ChatGPT, Midjourney, Claude, Runway, Adobe Firefly). Use 'General AI' if no specific tool is named.",
+  "summary": "One sentence: what skill this teaches and why it helps this role."
+}
+
+keep=true only if relevance_score >= ${threshold} AND it's a genuine tutorial (not news/opinion/ad).
+Respond ONLY with a valid JSON array.
+
+Videos:
+${videosJson}`;
+
+  // Routed through local proxy — no browser restrictions apply
+  const resp = await fetch('/proxy/anthropic', {
+    method: 'POST',
+    headers: {
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 3000,
+      messages: [{ role: 'user', content: prompt }]
+    })
+  });
+
+  if (!resp.ok) {
+    const err = await resp.json();
+    throw new Error(err?.error?.message || `Anthropic ${resp.status}`);
+  }
+  const data = await resp.json();
+  let raw = data.content[0].text.trim();
+  if (raw.startsWith('```')) {
+    raw = raw.split('```')[1];
+    if (raw.startsWith('json')) raw = raw.slice(4);
+  }
+  return JSON.parse(raw.trim());
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MAIN AGENT
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function startAgent() {
+  const ytKey  = document.getElementById('yt-key').value.trim();
+  const antKey = document.getElementById('ant-key').value.trim();
+  const selVerticals = getSelectedVerticalNames();
+  const maxResults = parseInt(document.getElementById('rq-slider').value);
+  const threshold  = parseInt(document.getElementById('sc-slider').value);
+
+  // Reset run stats but KEEP allResults and seenIds so we accumulate
+  // across sessions and never duplicate a video across any vertical or run.
+  // seenIds is already seeded from saved results via restoreFromStorage().
+  stats       = { searched: 0, candidates: 0, kept: allResults.length, quota: 0 };
+  document.getElementById('restore-banner').style.display = 'none';
+  stopRequested = false;
+  running       = true;
+  doneQueries   = 0;
+  totalQueries  = selVerticals.reduce((a, n) => a + VERTICALS[n].queries.length, 0);
+
+  // UI
+  document.getElementById('run-btn').disabled = true;
+  document.getElementById('stop-btn').classList.add('visible');
+  document.getElementById('progress-wrap').classList.add('visible');
+  document.getElementById('results-area').innerHTML =
+    '<div class="results-empty"><div class="empty-icon">⚙️</div><p>Processing…</p></div>';
+  document.getElementById('filter-row').style.display = 'none';
+  document.getElementById('log-box').innerHTML = '';
+  updateStats();
+
+  log(`Starting agent — ${selVerticals.length} verticals, ${totalQueries} queries`, 'success');
+
+  for (const verticalName of selVerticals) {
+    if (stopRequested) { log('Agent stopped by user.', 'warn'); break; }
+
+    const vdata = VERTICALS[verticalName];
+    const buffer = [];
+    let vKept = 0;
+
+    log(`── ${vdata.icon} ${verticalName} ──`, 'success');
+
+    for (const query of vdata.queries) {
+      if (stopRequested) break;
+
+      log(`Searching: "${query}"`, 'dim');
+      updateProgress(`${verticalName} — ${query}`);
+
+      try {
+        const videos = await searchYouTube(query, maxResults, ytKey);
+        const newVids = videos.filter(v => !seenIds.has(v.video_id));
+        newVids.forEach(v => { v.vertical = verticalName; v.search_query = query; seenIds.add(v.video_id); });
+        buffer.push(...newVids);
+        stats.candidates += newVids.length;
+        stats.searched++;
+        stats.quota += 100;
+        doneQueries++;
+        updateStats();
+        setProgress(doneQueries / totalQueries);
+      } catch(e) {
+        log(`YouTube error: ${e.message}`, 'warn');
+        doneQueries++;
+      }
+
+      // Score in batches of 8
+      while (buffer.length >= 8) {
+        const batch = buffer.splice(0, 8);
+        await scoreAndAdd(batch, verticalName, vdata.roles, antKey, ytKey, threshold);
+        vKept = allResults.filter(r => r.Vertical === verticalName).length;
+        renderTable();
+      }
+
+      await sleep(400);
+    }
+
+    // Flush remainder
+    if (buffer.length && !stopRequested) {
+      await scoreAndAdd(buffer, verticalName, vdata.roles, antKey, ytKey, threshold);
+      renderTable();
+    }
+
+    vKept = allResults.filter(r => r.Vertical === verticalName).length;
+    log(`✓ ${verticalName} — ${vKept} videos kept`, 'success');
+  }
+
+  running = false;
+  document.getElementById('run-btn').disabled = false;
+  document.getElementById('stop-btn').classList.remove('visible');
+  setProgress(1);
+  document.getElementById('progress-text').textContent =
+    stopRequested ? '⏹ Stopped' : `✅ Complete — ${allResults.length} videos curated`;
+  log(`🎉 Done! ${allResults.length} total videos kept.`, 'success');
+  document.getElementById('dl-btn').disabled = allResults.length === 0;
+}
+
+async function scoreAndAdd(batch, verticalName, roles, antKey, ytKey, threshold) {
+  log(`Scoring ${batch.length} videos with Claude…`, 'info');
+  try {
+    const scores = await scoreBatch(batch, verticalName, roles, antKey, threshold);
+    const scoreMap = {};
+    scores.forEach(s => { if (s?.video_id) scoreMap[s.video_id] = s; });
+    const keepers = batch.filter(v => scoreMap[v.video_id]?.keep === true);
+
+    if (keepers.length) {
+      const statsData = await getVideoStats(keepers.map(v => v.video_id), ytKey);
+      keepers.forEach(v => {
+        const s  = scoreMap[v.video_id];
+        const st = statsData[v.video_id] || {};
+        allResults.push({
+          'Video ID':       v.video_id,
+          Vertical:         v.vertical,
+          Title:            v.title,
+          Channel:          v.channel,
+          URL:              v.url,
+          'Relevance Score': s.relevance_score,
+          'Skill Level':    s.skill_level,
+          'Curriculum Tier':s.curriculum_tier,
+          'AI Tools':       s.ai_tools || 'General AI',
+          Summary:          s.summary,
+          'View Count':     st.view_count || '',
+          Published:        (v.published_at || '').slice(0,10),
+          'Search Query':   v.search_query,
+        });
+      });
+      stats.kept = allResults.length;
+      updateStats();
+      saveToStorage();
+      if (document.getElementById('breakdown-panel').classList.contains('open')) renderBreakdown();
+      log(`✓ Kept ${keepers.length} from batch (total: ${allResults.length})`, 'success');
+    }
+  } catch(e) {
+    log(`⚠️ Claude scoring failed: ${e.message}`, 'error');
+    log(`   → Check your Anthropic key and that the proxy server is running`, 'warn');
+  }
+}
+
+function stopAgent() { stopRequested = true; }
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// UI HELPERS
+// ─────────────────────────────────────────────────────────────────────────────
+
+function updateStats() {
+  document.getElementById('stat-searched').textContent  = stats.searched;
+  document.getElementById('stat-candidates').textContent = stats.candidates;
+  document.getElementById('stat-kept').textContent       = stats.kept;
+  document.getElementById('stat-quota').textContent      = stats.quota.toLocaleString();
+}
+
+function setProgress(frac) {
+  document.getElementById('progress-fill').style.width = Math.min(100, frac * 100) + '%';
+}
+
+function updateProgress(text) {
+  document.getElementById('progress-text').textContent = text;
+}
+
+function scoreColor(n) {
+  if (n >= 9) return '#10B981';
+  if (n >= 7) return '#3B82F6';
+  if (n >= 5) return '#F59E0B';
+  return '#EF4444';
+}
+
+function skillPill(s) {
+  if (!s) return '';
+  const cls = s === 'Beginner' ? 'pill-beginner' : s === 'Intermediate' ? 'pill-inter' : 'pill-advanced';
+  return `<span class="pill ${cls}">${s}</span>`;
+}
+
+function tierPill(t) {
+  if (!t) return '';
+  const cls = t === 'Day 1' ? 'pill-day1' : t === 'Week 1' ? 'pill-week1' : 'pill-month1';
+  return `<span class="pill ${cls}">${t}</span>`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// VERTICAL BREAKDOWN PANEL
+// ─────────────────────────────────────────────────────────────────────────────
+
+function toggleBreakdown() {
+  const panel = document.getElementById('breakdown-panel');
+  const isOpen = panel.classList.contains('open');
+  if (!isOpen) renderBreakdown();
+  panel.classList.toggle('open', !isOpen);
+}
+
+function renderBreakdown() {
+  const grid = document.getElementById('breakdown-grid');
+
+  // Count and group by vertical
+  const counts = {};
+  allResults.forEach(r => {
+    const v = r.Vertical || 'Unknown';
+    counts[v] = (counts[v] || 0) + 1;
+  });
+
+  const verticals = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+
+  if (!verticals.length) {
+    grid.innerHTML = `<div style="padding:20px;font-size:.78rem;color:var(--grey-400);grid-column:1/-1;text-align:center">
+      No results yet — run the agent to populate this view.
+    </div>`;
+    return;
+  }
+
+  grid.innerHTML = verticals.map(([name, count]) => {
+    const data = VERTICALS[name];
+    const icon = data ? data.icon : '📁';
+    return `<div class="breakdown-item" onclick="filterToVertical('${name.replace(/'/g,"\\'")}')">
+      <div class="breakdown-item-left">
+        <span style="font-size:1.1rem;line-height:1">${icon}</span>
+        <div>
+          <div class="breakdown-item-name">${escHtml(name)}</div>
+          <div class="breakdown-item-sub">View results →</div>
+        </div>
+      </div>
+      <div class="breakdown-item-count">${count}</div>
+    </div>`;
+  }).join('');
+}
+
+function filterToVertical(verticalName) {
+  // Close the panel
+  document.getElementById('breakdown-panel').classList.remove('open');
+
+  // Set the vertical filter dropdown
+  const sel = document.getElementById('f-vertical');
+  // Make sure the option exists
+  let found = false;
+  for (const opt of sel.options) {
+    if (opt.value === verticalName) { found = true; break; }
+  }
+  if (!found) {
+    const opt = document.createElement('option');
+    opt.value = opt.textContent = verticalName;
+    sel.appendChild(opt);
+  }
+  sel.value = verticalName;
+  renderTable();
+
+  // Scroll to the results card
+  document.getElementById('results-area').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function renderTable() {
+  const fV = document.getElementById('f-vertical')?.value || '';
+  const fS = document.getElementById('f-skill')?.value    || '';
+  const fT = document.getElementById('f-tier')?.value     || '';
+
+  let rows = allResults;
+  if (fV) rows = rows.filter(r => r.Vertical === fV);
+  if (fS) rows = rows.filter(r => r['Skill Level'] === fS);
+  if (fT) rows = rows.filter(r => r['Curriculum Tier'] === fT);
+
+  // Populate vertical filter
+  const vSel = document.getElementById('f-vertical');
+  const existingVerts = new Set([...vSel.options].map(o => o.value).filter(Boolean));
+  const allVerts = [...new Set(allResults.map(r => r.Vertical))].sort();
+  allVerts.forEach(v => {
+    if (!existingVerts.has(v)) {
+      const opt = document.createElement('option');
+      opt.value = opt.textContent = v;
+      vSel.appendChild(opt);
+    }
+  });
+
+  document.getElementById('filter-row').style.display = rows.length ? 'flex' : 'none';
+  document.getElementById('result-count').textContent =
+    `Showing ${rows.length} of ${allResults.length} videos`;
+  document.getElementById('dl-btn').disabled = allResults.length === 0;
+
+  if (!rows.length) {
+    document.getElementById('results-area').innerHTML =
+      `<div class="results-empty"><div class="empty-icon">🎯</div><p>No results yet…</p></div>`;
+    return;
+  }
+
+  const tbody = rows.map(r => {
+    const score = Number(r['Relevance Score']) || 0;
+    return `<tr>
+      <td class="title-cell">
+        <a href="${r.URL}" target="_blank">${escHtml(r.Title)}</a>
+        <div style="font-size:.68rem;color:var(--slate-400);margin-top:2px">${escHtml(r.Channel)}</div>
+      </td>
+      <td style="white-space:nowrap;font-size:.72rem;color:var(--slate-500)">${escHtml(r.Vertical)}</td>
+      <td>
+        <div class="score-bar-wrap">
+          <div class="score-bar-track">
+            <div class="score-bar-fill" style="width:${score*10}%;background:${scoreColor(score)}"></div>
+          </div>
+          <span class="score-num">${score}</span>
+        </div>
+      </td>
+      <td>${skillPill(r['Skill Level'])}</td>
+      <td>${tierPill(r['Curriculum Tier'])}</td>
+      <td style="font-size:.72rem;color:var(--slate-600);white-space:nowrap">${escHtml(r['AI Tools'] || '')}</td>
+      <td class="summary-cell">${escHtml(r.Summary || '')}</td>
+      <td><a class="watch-btn" href="${r.URL}" target="_blank">▶ Watch</a></td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('results-area').innerHTML = `
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>Title / Channel</th>
+          <th>Vertical</th>
+          <th style="min-width:110px">Score</th>
+          <th>Skill</th>
+          <th>Tier</th>
+          <th>AI Tools</th>
+          <th>Summary</th>
+          <th></th>
+        </tr></thead>
+        <tbody>${tbody}</tbody>
+      </table>
+    </div>`;
+}
+
+function escHtml(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CSV DOWNLOAD
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AUTOSAVE / RESTORE  (localStorage — survives page close/restart)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const STORAGE_KEY     = 'ai_navigator_results';
+const STORAGE_KEY_TS  = 'ai_navigator_saved_at';
+const STORAGE_YT_KEY  = 'ai_navigator_yt_key';
+const STORAGE_ANT_KEY = 'ai_navigator_ant_key';
+
+function saveToStorage() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(allResults));
+    localStorage.setItem(STORAGE_KEY_TS, new Date().toISOString());
+  } catch(e) { /* storage full — silently skip */ }
+}
+
+function clearSavedResults() {
+  localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem(STORAGE_KEY_TS);
+  allResults = [];
+  seenIds    = new Set();
+  stats.kept = 0;
+  updateStats();
+  renderTable();
+  document.getElementById('dl-btn').disabled = true;
+  const banner = document.getElementById('restore-banner');
+  banner.style.display = 'none';
+  log('🗑 Saved results cleared.', 'warn');
+}
+
+function restoreFromStorage() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed) || parsed.length === 0) return;
+
+    allResults = parsed;
+
+    // Migrate old records that were saved before the Video ID field was added.
+    // Extract the ID from the YouTube URL (format: ?v=XXXXXXXXXXX) as a fallback.
+    let migrated = false;
+    allResults.forEach(r => {
+      if (!r['Video ID'] && r.URL) {
+        const m = r.URL.match(/[?&]v=([^&]+)/);
+        if (m) { r['Video ID'] = m[1]; migrated = true; }
+      }
+    });
+    // Persist the patched records so this migration only runs once
+    if (migrated) {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(allResults)); } catch(e) {}
+    }
+
+    // Rebuild seenIds from every stored Video ID — nothing gets searched twice
+    seenIds = new Set(allResults.map(r => r['Video ID']).filter(Boolean));
+    console.log(`[AI Navigator] seenIds rebuilt: ${seenIds.size} unique video IDs loaded from storage`);
+
+    stats.kept = allResults.length;
+    updateStats();
+    renderTable();
+    renderBreakdown();
+    document.getElementById('dl-btn').disabled = false;
+
+    const ts  = localStorage.getItem(STORAGE_KEY_TS);
+    const when = ts
+      ? new Date(ts).toLocaleString('en-GB', { day:'numeric', month:'short',
+          hour:'2-digit', minute:'2-digit' })
+      : 'a previous session';
+
+    const banner = document.getElementById('restore-banner');
+    document.getElementById('restore-msg').textContent =
+      `📂 ${allResults.length} saved result${allResults.length !== 1 ? 's' : ''} restored from ${when}. ` +
+      `New searches will add to these — no duplicates across any vertical or session.`;
+    banner.style.display = 'flex';
+  } catch(e) { /* corrupt data — ignore */ }
+}
+
+function downloadCSV() {
+  if (!allResults.length) return;
+  const fV = document.getElementById('f-vertical')?.value || '';
+  const fS = document.getElementById('f-skill')?.value    || '';
+  const fT = document.getElementById('f-tier')?.value     || '';
+  let rows = allResults;
+  if (fV) rows = rows.filter(r => r.Vertical === fV);
+  if (fS) rows = rows.filter(r => r['Skill Level'] === fS);
+  if (fT) rows = rows.filter(r => r['Curriculum Tier'] === fT);
+
+  const headers = Object.keys(rows[0]);
+  const csvStr = [
+    headers.join(','),
+    ...rows.map(r => headers.map(h => `"${String(r[h]||'').replace(/"/g,'""')}"`).join(','))
+  ].join('\n');
+
+  const blob = new Blob([csvStr], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `ai_navigator_videos_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+}
+</script>
+</body>
+</html>
